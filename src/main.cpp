@@ -1,8 +1,25 @@
 #include <Arduino.h>
+//#include "nvs_flash.h"
 #include <BluetoothSerial.h>
 
 BluetoothSerial SerialBT;
 
+const int pwm0=32,pwm1=26,an1=36,an2=39,an3=34,an4=35,fdcpin=21,jackpin=4;   //motor and sensor pins
+const int dir1=33,dir2=27,bk=25,red=14,yellow=12,green=13;                   //motor settings pins + leds
+const int freq=500,chn0=0,chn1=1,res=10,basespeed = 341;                     //Pwm setup
+
+int motdir1=0,motdir2=0,brake,farleft,farright,leftMotSp,rightMotSp;         //variables for reading/writing
+float error_prior = 0, KP=0.5, KD=4.5,pid_output=0;                          //variables for processing
+int state=0, menu=0;                                                         //machine states
+
+bool fdc=0,jack=1,rstat=0,ystat=0,gstat=0;       //states
+
+void leftmot(int speed,int dirrection);
+void rightmot(int speed,int dirrection);
+float pidControl(int difference);
+int current_value(void);
+
+void setup() {
 //---------------------------------------------------FLASH ACCESS-------------------------
 /*
 esp_err_t ret = nvs_flash_init();
