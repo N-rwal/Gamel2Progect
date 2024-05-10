@@ -4,15 +4,15 @@
 
 BluetoothSerial SerialBT;
 
-const int pwm0=32,pwm1=26,an1=36,an2=39,an3=34,an4=35,fdcpin=21,jackpin=4;   //motor and sensor pins
-const int dir1=33,dir2=27,bk=25,red=14,yellow=12,green=13;                   //motor settings pins + leds
-const int freq=500,chn0=0,chn1=1,res=10,basespeed = 341;                     //Pwm setup
+const int pwm0=32,pwm1=26,an1=36,an2=39,an3=34,an4=35,fdcpin=21,jackpin=4,ballpin=17;   //motor and sensor pins
+const int dir1=33,dir2=27,bk=25,red=14,yellow=12,green=13;                              //motor settings pins + leds
+const int freq=20000,chn0=0,chn1=1,res=10,basespeed = 341;                              //Pwm setup
 
-int motdir1=0,motdir2=0,brake,farleft,farright,leftMotSp,rightMotSp;         //variables for reading/writing
-float error_prior = 0, KP=0.5, KD=4.5,pid_output=0;                          //variables for processing
-int state=0, menu=0;                                                         //machine states
+int motdir1=0,motdir2=0,brake,farleft,left,right,farright,leftMotSp,rightMotSp;         //variables for reading/writing
+float error_prior = 0, KP=0.5, KD=4.5,pid_output=0;                                     //variables for processing
+int state=0;                                                                            //machine states
 
-bool fdc=0,jack=1,rstat=0,ystat=0,gstat=0;       //states
+bool fdc=0,jack=1,ball=0,rstat=0,ystat=0,gstat=0;                                       //states
 
 void leftmot(int speed,int dirrection);
 void rightmot(int speed,int dirrection);
@@ -41,17 +41,21 @@ if (ret != ESP_OK) {
     ledcAttachPin(pwm0,chn0);
     ledcAttachPin(pwm1,chn1);
 
-    pinMode(an1,INPUT);
-    pinMode(an2,INPUT);
-    pinMode(an3,INPUT);
-    pinMode(an4,INPUT);
+    pinMode(an1,INPUT_PULLDOWN);
+    pinMode(an2,INPUT_PULLDOWN);
+    pinMode(an3,INPUT_PULLDOWN);
+    pinMode(an4,INPUT_PULLDOWN);
+
+    pinMode(fdcpin,INPUT_PULLDOWN);
+    pinMode(jackpin,INPUT_PULLDOWN);
+    pinMode(ballpin,INPUT_PULLDOWN);
+
     pinMode(dir1,OUTPUT);
     pinMode(dir2,OUTPUT);
     pinMode(bk,OUTPUT);
     pinMode(red,OUTPUT);
     pinMode(yellow,OUTPUT);
     pinMode(green,OUTPUT);
-
 
     leftmot(0,motdir1);
     rightmot(0,motdir2);
@@ -62,19 +66,31 @@ void loop() {
     fdc = digitalRead(fdcpin);                  //true if fdc is pressed
     jack = !digitalRead(jackpin);               // true if jack is missing
     pid_output = pidControl(current_value());   //this reads the sensors and computes the PID signal
-
+    ball = !digitalRead(ballpin);               //true if ball is present
+//---------------------------------------------------BLUETOOTH----------------------------------
     if (SerialBT.available()) {
     char input = SerialBT.read();
     
     switch (input) {
-        case '0':
+        case '0':                               //Stop command
+        SerialBT.printf("Stopping\n");          
+        state=3;
             break;
-        case '1':
+        case '1':                               //State out command
+        SerialBT.printf("Giving state\n");
+        SerialBT.printf("A1: %d A2: %d A3: %d A4: %d\n",farleft,left,right,farright);
+        SerialBT.printf("State: %d Fdc: %d Jack: %d Ball: %d\n",state,fdc,jack,ball);
             break;
-        case '2':
+        case '2':                               //Follow the line command
+        SerialBT.printf("Following the line\n");
+        state=1;
+            break;
+        default:                                //Why does this keep happening ?
+        SerialBT.printf("This is impossible\n");
             break;
     }
 }
+//---------------------------------------------------BLUETOOTH----------------------------------
 //---------------------------------------------------MAIN MACHINE STATE-------------------------
     switch (state) { 
             case 0: //Jack present - Stop
@@ -134,8 +150,8 @@ void rightmot(int speed,int dirrection){
 }
 
 int current_value(void){//This updates the sensor variables
-    int left = analogRead(an1);
-    int right = analogRead(an2);
+    left = analogRead(an1);
+    right = analogRead(an2);
     farleft = analogRead(an3);
     farright = analogRead(an4);
     //anRead1 - anRead2 maybe ?
