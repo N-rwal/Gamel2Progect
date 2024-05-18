@@ -1,8 +1,13 @@
+#include <WiFi.h>
+#include <WebServer.h>
+#include <SPIFFS.h>
 #include <Arduino.h>
 //#include "nvs_flash.h"
-#include <BluetoothSerial.h>
 
-BluetoothSerial SerialBT;
+const char *ssid = "Zebra";
+const char *password = "ihatehtml";
+
+WebServer server(80);
 
 const int pwm0=32,pwm1=26,an1=36,an2=39,an3=34,an4=35,fdcpin=21,jackpin=4,ballpin=17;   //motor and sensor pins
 const int dir1=33,dir2=27,bk=25,red=14,yellow=12,green=13;                              //motor settings pins + leds
@@ -18,8 +23,23 @@ void leftmot(int speed,int dirrection);
 void rightmot(int speed,int dirrection);
 float pidControl(int difference);
 int current_value(void);
+void handleRoot();
+void handleNotFound();
 
 void setup() {
+  Serial.begin(115200);
+
+  if (!SPIFFS.begin(true)) {
+    Serial.println("An Error has occurred while mounting SPIFFS");
+    return;
+  }
+  WiFi.softAP(ssid, password);
+  IPAddress IP = WiFi.softAPIP();
+  Serial.print("AP IP address: ");
+  Serial.println(IP);
+  server.on("/", handleRoot);
+  server.begin();
+  Serial.println("HTTP server started");
 //---------------------------------------------------FLASH ACCESS-------------------------
 /*
 esp_err_t ret = nvs_flash_init();
@@ -34,7 +54,6 @@ if (ret != ESP_OK) {
 }
 */
 //---------------------------------------------------FLASH ACCESS-------------------------
-    SerialBT.begin("Zala");
     ledcSetup(chn0,freq,res);
     ledcSetup(chn1,freq,res);
 
@@ -64,33 +83,10 @@ if (ret != ESP_OK) {
 
 void loop() {
     fdc = digitalRead(fdcpin);                  //true if fdc is pressed
-    jack = !digitalRead(jackpin);               // true if jack is missing
+    jack = !digitalRead(jackpin);               //true if jack is missing
     pid_output = pidControl(current_value());   //this reads the sensors and computes the PID signal
     ball = !digitalRead(ballpin);               //true if ball is present
-//---------------------------------------------------BLUETOOTH----------------------------------
-    if (SerialBT.available()) {
-    char input = SerialBT.read();
-    
-    switch (input) {
-        case '0':                               //Stop command
-        SerialBT.printf("Stopping\n");          
-        state=3;
-            break;
-        case '1':                               //State out command
-        SerialBT.printf("Giving state\n");
-        SerialBT.printf("A1: %d A2: %d A3: %d A4: %d\n",farleft,left,right,farright);
-        SerialBT.printf("State: %d Fdc: %d Jack: %d Ball: %d\n",state,fdc,jack,ball);
-            break;
-        case '2':                               //Follow the line command
-        SerialBT.printf("Following the line\n");
-        state=1;
-            break;
-        default:                                //Why does this keep happening ?
-        SerialBT.printf("This is impossible\n");
-            break;
-    }
-}
-//---------------------------------------------------BLUETOOTH----------------------------------
+    server.handleClient();
 //---------------------------------------------------MAIN MACHINE STATE-------------------------
     switch (state) { 
             case 0: //Jack present - Stop
@@ -158,7 +154,6 @@ int current_value(void){//This updates the sensor variables
     int out = left - right;
     return out;
 }
-
 float pidControl(int difference) {// PID controller function
     float error = 0 - difference;
     float derivative = error - error_prior;
@@ -166,6 +161,23 @@ float pidControl(int difference) {// PID controller function
     float output = (KP * error) + (KD * derivative); //(KI * integral) +
     error_prior = error;
     return output;
+}
+void handleRoot() {
+  Serial.println("Handling root request");
+  File file = SPIFFS.open("/index.html", "r");
+  if (!file) {
+    Serial.println("Failed to open /index.html");
+    server.send(500, "text/plain", "File not found");
+    return;
+  }
+
+  Serial.println("Serving /index.html");
+  server.streamFile(file, "text/html");
+  file.close();
+}
+void handleNotFound() {//For debugging purposses
+  Serial.println("Not Found: " + server.uri());
+  server.send(404, "text/plain", "Not found");
 }
 /*
 //FOR WRITING:

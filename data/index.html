@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Car Robot Interface</title>
+  <style>
+    body { font-family: Arial, sans-serif; }
+    .container { width: 300px; margin: 0 auto; text-align: center; }
+    .input-group { margin-bottom: 15px; }
+    .input-group label { display: block; }
+    .button-group { margin-top: 20px; }
+    .button-group button { width: 70px; height: 30px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Car Robot Interface</h1>
+
+    <div class="input-group">
+      <label for="float1">Float 1:</label>
+      <input type="number" step="0.01" id="float1">
+    </div>
+    <div class="input-group">
+      <label for="float2">Float 2:</label>
+      <input type="number" step="0.01" id="float2">
+    </div>
+    <div class="input-group">
+      <label for="float3">Float 3:</label>
+      <input type="number" step="0.01" id="float3">
+    </div>
+
+    <div class="button-group">
+      <button onclick="sendCommand('btn1')">Stop</button>
+      <button onclick="sendCommand('btn2')">Run</button>
+      <button onclick="sendCommand('btn3')">State</button>
+      <button onclick="sendCommand('btn4')">Future</button>
+    </div>
+
+    <div class="output-group">
+      <h2>Outputs</h2>
+      <p>Analog 1: <span id="analog1">0</span></p>
+      <p>Analog 2: <span id="analog2">0</span></p>
+      <p>Analog 3: <span id="analog3">0</span></p>
+      <p>Analog 4: <span id="analog4">0</span></p>
+      <p>Boolean 1: <span id="boolean1">false</span></p>
+      <p>Boolean 2: <span id="boolean2">false</span></p>
+      <p>Boolean 3: <span id="boolean3">false</span></p>
+      <p>Integer: <span id="integer">0</span></p>
+    </div>
+  </div>
+
+  <script>
+    function sendCommand(command) {
+      fetch(`/command?cmd=${command}`)
+        .then(response => response.text())
+        .then(data => {
+          console.log(data);
+        });
+    }
+
+    function sendData() {
+      const float1 = document.getElementById('float1').value;
+      const float2 = document.getElementById('float2').value;
+      const float3 = document.getElementById('float3').value;
+
+      fetch(`/data?float1=${float1}&float2=${float2}&float3=${float3}`)
+        .then(response => response.text())
+        .then(data => {
+          console.log(data);
+        });
+    }
+
+    setInterval(() => {
+      fetch('/status')
+        .then(response => response.json())
+        .then(data => {
+          document.getElementById('analog1').textContent = data.analog1;
+          document.getElementById('analog2').textContent = data.analog2;
+          document.getElementById('analog3').textContent = data.analog3;
+          document.getElementById('analog4').textContent = data.analog4;
+          document.getElementById('boolean1').textContent = data.boolean1;
+          document.getElementById('boolean2').textContent = data.boolean2;
+          document.getElementById('boolean3').textContent = data.boolean3;
+          document.getElementById('integer').textContent = data.integer;
+        });
+    }, 1000);
+  </script>
+</body>
+</html>
