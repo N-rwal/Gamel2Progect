@@ -3,6 +3,27 @@
 <head>
   <title>Car Robot Interface</title>
   <script>
+    function sendCommand(button) {
+      var xhr = new XMLHttpRequest();
+      xhr.open("GET", "/" + button, true);
+      xhr.send();
+    }
+
+    function updateStats() {
+      var xhr = new XMLHttpRequest();
+      xhr.onreadystatechange = function() {
+        if (xhr.readyState == XMLHttpRequest.DONE && xhr.status == 200) {
+          var response = xhr.responseText.split('\n');
+          document.getElementById("finish").innerText = response[0];
+          document.getElementById("jack").innerText = response[1];
+          document.getElementById("ball").innerText = response[2];
+          document.getElementById("mstate").innerText = response[3];
+        }
+      };
+      xhr.open("GET", "/stats", true);
+      xhr.send();
+    }
+
     function updateValues() {
       var xhr = new XMLHttpRequest();
       xhr.onreadystatechange = function() {
@@ -14,22 +35,27 @@
           document.getElementById("fright").innerText = response[3];
         }
       };
-      xhr.open("GET", "/intValues", true); // New route to get integer values
+      xhr.open("GET", "/intValues", true);
       xhr.send();
     }
 
     // Function to periodically update values
-    setInterval(updateValues, 200); // Update every 1 second
+    setInterval(updateValues, 1000); // Update every 1 second
+    setInterval(updateStats, 5000); // Update booleans and mstate every 5 seconds (or adjust as needed)
   </script>
 </head>
-<body>
+<body onload="updateStats()">
   <h1>Car Robot Interface</h1>
   
-  <!-- Buttons -->
   <button onclick="sendCommand('button1')">Stop</button>
   <button onclick="sendCommand('button2')">Stats</button>
   <button onclick="sendCommand('button3')">Run</button>
   <button onclick="sendCommand('button4')">Input</button>
+
+  <div>Finish: <span id="finish">-</span></div>
+  <div>Jack: <span id="jack">-</span></div>
+  <div>Ball: <span id="ball">-</span></div>
+  <div>MState: <span id="mstate">-</span></div>
 
   <table border="1">
     <tr>

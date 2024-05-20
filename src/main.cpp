@@ -30,18 +30,19 @@ void handleButton1();
 void handleButton2();
 void handleButton3();
 void handleButton4();
+void handleRoot();
+void handleNotFound();
+void handleFavicon();
+void handleStatus();
+void updateIntValues();
+void updateStats();
 //--------------------------------------------------------WEB VARIABLES----------------------------------
 
 void leftmot(int speed,int dirrection);
 void rightmot(int speed,int dirrection);
 float pidControl(int difference);
 int current_value(void);
-void handleRoot();
-void handleNotFound();
-void handleFavicon();
-void handleStatus();
-void updateValues();
-void updateIntValues();
+
 
 void setup() {
   Serial.begin(115200);
@@ -55,19 +56,20 @@ void setup() {
   Serial.print("AP IP address: ");
   Serial.println(IP);
 
-  // Define routes
+//---------------------------------------------------HANDLE ROUTES------------------------
   server.on("/", handleRoot);
   server.on("/button1", handleButton1);
   server.on("/button2", handleButton2);
   server.on("/button3", handleButton3);
   server.on("/button4", handleButton4);
-  server.on("/favicon.ico", handleFavicon); // Handle favicon request
-  server.on("/status", handleStatus); // Handle status request
-  server.on("/values", HTTP_GET, updateValues);
+  server.on("/favicon.ico", handleFavicon);                     // Handle favicon request
+  server.on("/status", handleStatus);                           // Handle status request
+  server.on("/stats", HTTP_GET, updateStats);
   server.on("/intValues", HTTP_GET, updateIntValues);
-  server.onNotFound(handleNotFound); // Catch-all handler
+  server.onNotFound(handleNotFound);                            // Catch-all handler
   server.begin();
   Serial.println("HTTP server started");
+//---------------------------------------------------HANDLE ROUTES------------------------
 //---------------------------------------------------FLASH ACCESS-------------------------
 /*
 esp_err_t ret = nvs_flash_init();
@@ -157,15 +159,12 @@ void loop() {
                 break;
         }
 //---------------------------------------------------MAIN MACHINE STATE-------------------------
-if (millis() - lastUpdateTime >= updateInterval) {
-    updateIntValues();
-    lastUpdateTime = millis();
-  }
     digitalWrite(red,rstat);
     digitalWrite(yellow,ystat);
     digitalWrite(green,gstat);
     leftmot(leftMotSp,motdir1);
     rightmot(rightMotSp,motdir2);
+    server.handleClient();
 }
 
 void leftmot(int speed,int dirrection){
@@ -225,7 +224,6 @@ void handleButton1() {
 void handleButton2() {
   button2State = !button2State;  // Toggle button state
   Serial.println("Button 2 state: " + String(button2State));
-  updateValues(); // Update web page with new values
   server.send(200, "text/plain", "Button 2 pressed");
 }
 
@@ -240,17 +238,15 @@ void handleButton4() {
   server.send(200, "text/plain", "Button 4 pressed");
   Serial.println("Button 4 state: " + String(button4State));
 }
-void updateValues() {
-  // Send the current state of boolean values and integer to the web interface
-  server.send(200, "text/plain",    String(fdc) + "\n"
-                                 +  String(jack) + "\n"
-                                 +  String(ball) + "\n"
-                                 +  String(state));
-}
 void updateIntValues() {
   // Send the current values of 'Fleft', 'Left', 'Right', and 'FRight' to the web interface
   String values = String(farleft) + "\n" + String(left) + "\n" + String(right) + "\n" + String(farright);
   server.send(200, "text/plain", values);
+}
+void updateStats() {
+  // Send the current state of booleans and the other integer to the web interface
+  String status = String(fdc) + "\n" + String(jack) + "\n" + String(ball) + "\n" + String(state);
+  server.send(200, "text/plain", status);
 }
 /*
 //FOR WRITING:
