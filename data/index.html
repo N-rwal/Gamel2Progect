@@ -1,7 +1,56 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Car Robot Interface</title>
+  <title>Gamel Interface</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+    }
+    button {
+      background-color: #4CAF50; /* Green */
+      border: none;
+      color: white;
+      padding: 15px 32px;
+      text-align: center;
+      text-decoration: none;
+      display: inline-block;
+      font-size: 16px;
+      margin: 4px 2px;
+      cursor: pointer;
+      border-radius: 12px;
+    }
+    button:hover {
+      background-color: #45a049;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 20px;
+    }
+    table, th, td {
+      border: 1px solid black;
+    }
+    th, td {
+      padding: 10px;
+      text-align: center;
+    }
+    th {
+      background-color: #f2f2f2;
+    }
+    td {
+      height: 50%;
+    }
+    .slider-container {
+      margin: 20px 0;
+    }
+    .slider-label {
+      display: inline-block;
+      width: 100px;
+    }
+    .slider {
+      width: 70%;
+    }
+  </style>
   <script>
     function sendCommand(button) {
       var xhr = new XMLHttpRequest();
@@ -39,25 +88,44 @@
       xhr.send();
     }
 
+    function sendInputValues() {
+      var speed = document.getElementById("speed").value;
+      var kp = document.getElementById("kp").value;
+      var kd = document.getElementById("kd").value;
+      var xhr = new XMLHttpRequest();
+      xhr.open("GET", "/inputValues?speed=" + speed + "&kp=" + kp + "&kd=" + kd, true);
+      xhr.send();
+    }
+
     // Function to periodically update values
-    setInterval(updateValues, 1000); // Update every 1 second
-    setInterval(updateStats, 5000); // Update booleans and mstate every 5 seconds (or adjust as needed)
+    setInterval(updateValues, 200); // Update every 1 second
+    setInterval(updateStats, 1000); // Update booleans and mstate every 5 seconds (or adjust as needed)
   </script>
 </head>
 <body onload="updateStats()">
-  <h1>Car Robot Interface</h1>
+  <h1>Gamel Interface</h1>
   
   <button onclick="sendCommand('button1')">Stop</button>
   <button onclick="sendCommand('button2')">Stats</button>
   <button onclick="sendCommand('button3')">Run</button>
-  <button onclick="sendCommand('button4')">Input</button>
+  <button onclick="sendInputValues()">Input</button>
 
-  <div>Finish: <span id="finish">-</span></div>
-  <div>Jack: <span id="jack">-</span></div>
-  <div>Ball: <span id="ball">-</span></div>
-  <div>MState: <span id="mstate">-</span></div>
+  <table>
+    <tr>
+      <th>Finish</th>
+      <th>Jack</th>
+      <th>Ball</th>
+      <th>Mstate</th>
+    </tr>
+    <tr>
+      <td id="finish">-</td>
+      <td id="jack">-</td>
+      <td id="ball">-</td>
+      <td id="mstate">-</td>
+    </tr>
+  </table>
 
-  <table border="1">
+  <table>
     <tr>
       <th>Fleft</th>
       <th>Left</th>
@@ -71,5 +139,21 @@
       <td id="fright">-</td>
     </tr>
   </table>
+
+  <div class="slider-container">
+    <label class="slider-label" for="speed">Speed: </label>
+    <input type="range" class="slider" id="speed" name="speed" min="0" max="1000" oninput="document.getElementById('speedValue').innerText = this.value;">
+    <span id="speedValue">341</span>
+  </div>
+  <div class="slider-container">
+    <label class="slider-label" for="kp">Kp: </label>
+    <input type="range" class="slider" id="kp" name="kp" min="0" max="2000" oninput="document.getElementById('kpValue').innerText = this.value;">
+    <span id="kpValue">350</span>
+  </div>
+  <div class="slider-container">
+    <label class="slider-label" for="kd">Kd: </label>
+    <input type="range" class="slider" id="kd" name="kd" min="0" max="7000" oninput="document.getElementById('kdValue').innerText = this.value;">
+    <span id="kdValue">3500</span>
+  </div>
 </body>
 </html>

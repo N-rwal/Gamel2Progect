@@ -9,23 +9,21 @@ const char *password = "ihatehtml";
 
 WebServer server(80);
 
-unsigned long lastUpdateTime = 0; 
-unsigned long updateInterval = 200;                                                     //my basic millis counter
-
 const int pwm0=32,pwm1=26,an1=36,an2=39,an3=34,an4=35,fdcpin=21,jackpin=4,ballpin=17;   //motor and sensor pins
 const int dir1=33,dir2=27,bk=25,red=14,yellow=12,green=13;                              //motor settings pins + leds
-const int freq=20000,chn0=0,chn1=1,res=10,basespeed = 341;                              //Pwm setup
+const int freq=20000,chn0=0,chn1=1,res=10;                                              //Pwm setup
 
 int motdir1=0,motdir2=0,brake,farleft,left,right,farright,leftMotSp,rightMotSp;         //variables for reading/writing
 float error_prior = 0, KP=0.5, KD=4.5,pid_output=0;                                     //variables for processing
 int state=0;                                                                            //machine states
 
 bool fdc=0,jack=1,ball=0,rstat=0,ystat=0,gstat=0;                                       //states
-//--------------------------------------------------------WEB VARIABLES----------------------------------
+//--------------------------------------------------------WEB STUFF----------------------------------
 bool button1State = false;
 bool button2State = false;
 bool button3State = false;
 bool button4State = false;
+int basespeed = 341;
 void handleButton1();
 void handleButton2();
 void handleButton3();
@@ -36,7 +34,8 @@ void handleFavicon();
 void handleStatus();
 void updateIntValues();
 void updateStats();
-//--------------------------------------------------------WEB VARIABLES----------------------------------
+void handleInputValues();
+//--------------------------------------------------------WEB STUFF----------------------------------
 
 void leftmot(int speed,int dirrection);
 void rightmot(int speed,int dirrection);
@@ -66,6 +65,7 @@ void setup() {
   server.on("/status", handleStatus);                           // Handle status request
   server.on("/stats", HTTP_GET, updateStats);
   server.on("/intValues", HTTP_GET, updateIntValues);
+  server.on("/inputValues", HTTP_GET, handleInputValues);
   server.onNotFound(handleNotFound);                            // Catch-all handler
   server.begin();
   Serial.println("HTTP server started");
@@ -179,9 +179,8 @@ void rightmot(int speed,int dirrection){
 int current_value(void){//This updates the sensor variables
     left = analogRead(an1);
     right = analogRead(an2);
-    farleft = analogRead(an3);
-    farright = analogRead(an4);
-    //anRead1 - anRead2 maybe ?
+    //farleft = analogRead(an3);
+    //farright = analogRead(an4);
     int out = left - right;
     return out;
 }
@@ -247,6 +246,20 @@ void updateStats() {
   // Send the current state of booleans and the other integer to the web interface
   String status = String(fdc) + "\n" + String(jack) + "\n" + String(ball) + "\n" + String(state);
   server.send(200, "text/plain", status);
+}
+void handleInputValues() {
+  if (server.hasArg("speed") && server.hasArg("kp") && server.hasArg("kd")) {
+    basespeed = server.arg("speed").toInt();
+    KP = (server.arg("kp").toInt())/1000.0;
+    KD = (server.arg("kd").toInt())/1000.0;
+    Serial.println("Received values:");
+    Serial.println("Speed: " + String(basespeed));
+    Serial.println("Kp: " + String(KP));
+    Serial.println("Kd: " + String(KD));
+    server.send(200, "text/plain", "Values updated");
+  } else {
+    server.send(400, "text/plain", "Missing parameters");
+  }
 }
 /*
 //FOR WRITING:
