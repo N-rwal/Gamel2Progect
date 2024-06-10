@@ -13,17 +13,13 @@ const int pwm0=32,pwm1=26,an1=36,an2=39,an3=34,an4=35,fdcpin=21,jackpin=4,ballpi
 const int dir1=33,dir2=27,bk=25,red=14,yellow=12,green=13;                              //motor settings pins + leds
 const int freq=20000,chn0=0,chn1=1,res=10;                                              //Pwm setup
 
-int motdir1=0,motdir2=0,farleft,left,right,farright,leftMotSp,rightMotSp;         //variables for reading/writing
+int motdir1=0,motdir2=0,farleft,left,right,farright,leftMotSp,rightMotSp;               //variables for reading/writing
 float error_prior = 0, KP=0.5, KD=4.5,pid_output=0;                                     //variables for processing
 int state=0;                                                                            //machine states
 
-bool fdc=0,jack=1,ball=0,rstat=0,ystat=0,gstat=0,brake=0;                                       //states
-bool fdc=0,jack=1,ball=0,rstat=0,ystat=0,gstat=0;                                       //states
+bool fdc=0,jack=1,ball=0,rstat=0,ystat=0,gstat=0,brake=0;                               //states
+
 //--------------------------------------------------------WEB STUFF----------------------------------
-bool button1State = false;
-bool button2State = false;
-bool button3State = false;
-bool button4State = false;
 int basespeed = 341;
 void handleButton1();
 void handleButton2();
@@ -186,8 +182,6 @@ int current_value(void){//This updates the sensor variables
     left = analogRead(an1);
     right = analogRead(an3);
     //farleft = analogRead(an2);
-    right = analogRead(an2);
-    //farleft = analogRead(an3);
     //farright = analogRead(an4);
     int out = left - right;
     return out;
@@ -223,30 +217,27 @@ void handleStatus() {
   server.send(200, "text/plain", "Status OK"); // Placeholder response
 }
 void handleButton1() {
-  button1State = !button1State;  // Toggle button state
   server.send(200, "text/plain", "Button 1 pressed");
   state=3;
-  Serial.println("Button 1 state: " + String(button1State));
+  Serial.println("Button 1");
 }
 
 void handleButton2() {
-  button2State = !button2State;  // Toggle button state
-  Serial.println("Button 2 state: " + String(button2State));
+  Serial.println("Button 2");
   server.send(200, "text/plain", "Button 2 pressed");
 }
 
 void handleButton3() {
-  button3State = !button3State;  // Toggle button state
   state=1;
   server.send(200, "text/plain", "Button 3 pressed");
-  Serial.println("Button 3 state: " + String(button3State));
+  Serial.println("Button 3");
 }
 
 void handleButton4() {
-  button4State = !button4State;  // Toggle button state
+  Serial.println("Button 4");
   server.send(200, "text/plain", "Button 4 pressed");
-  Serial.println("Button 4 state: " + String(button4State));
 }
+
 void updateIntValues() {
   // Send the current values of 'Fleft', 'Left', 'Right', and 'FRight' to the web interface
   String values = String(farleft) + "\n" + String(left) + "\n" + String(right) + "\n" + String(farright);
