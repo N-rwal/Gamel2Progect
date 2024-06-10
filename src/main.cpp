@@ -18,6 +18,7 @@ float error_prior = 0, KP=0.5, KD=4.5,pid_output=0;                             
 int state=0;                                                                            //machine states
 
 bool fdc=0,jack=1,ball=0,rstat=0,ystat=0,gstat=0,brake=0;                                       //states
+bool fdc=0,jack=1,ball=0,rstat=0,ystat=0,gstat=0;                                       //states
 //--------------------------------------------------------WEB STUFF----------------------------------
 bool button1State = false;
 bool button2State = false;
@@ -185,6 +186,8 @@ int current_value(void){//This updates the sensor variables
     left = analogRead(an1);
     right = analogRead(an3);
     //farleft = analogRead(an2);
+    right = analogRead(an2);
+    //farleft = analogRead(an3);
     //farright = analogRead(an4);
     int out = left - right;
     return out;
