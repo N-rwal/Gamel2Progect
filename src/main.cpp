@@ -32,6 +32,8 @@ void handleStatus();
 void updateIntValues();
 void updateStats();
 void handleInputValues();
+void runMainApp(void* parameter);
+void startWebServer(void* parameter);
 //--------------------------------------------------------WEB STUFF----------------------------------
 
 void leftmot(int speed,int dirrection);
@@ -42,7 +44,6 @@ int current_value(void);
 
 void setup() {
   Serial.begin(115200);
-
   if (!SPIFFS.begin(true)) {
     Serial.println("An Error has occurred while mounting SPIFFS");
     return;
@@ -52,21 +53,23 @@ void setup() {
   Serial.print("AP IP address: ");
   Serial.println(IP);
 
-//---------------------------------------------------HANDLE ROUTES------------------------
-  server.on("/", handleRoot);
-  server.on("/button1", handleButton1);
-  server.on("/button2", handleButton2);
-  server.on("/button3", handleButton3);
-  server.on("/button4", handleButton4);
-  server.on("/favicon.ico", handleFavicon);                     // Handle favicon request
-  server.on("/status", handleStatus);                           // Handle status request
-  server.on("/stats", HTTP_GET, updateStats);
-  server.on("/intValues", HTTP_GET, updateIntValues);
-  server.on("/inputValues", HTTP_GET, handleInputValues);
-  server.onNotFound(handleNotFound);                            // Catch-all handler
-  server.begin();
-  Serial.println("HTTP server started");
-//---------------------------------------------------HANDLE ROUTES------------------------
+  xTaskCreatePinnedToCore(
+        startWebServer,    /* Task function. */
+        "WebServerTask",   /* Name of task. */
+        10000,             /* Stack size of task. */
+        NULL,              /* Parameter of the task. */
+        1,                 /* Priority of the task. */
+        NULL,              /* Task handle to keep track of created task. */
+        0);                /* Pin task to core 0 */
+
+    xTaskCreatePinnedToCore(
+        runMainApp,        /* Task function. */
+        "MainAppTask",     /* Name of task. */
+        10000,             /* Stack size of task. */
+        NULL,              /* Parameter of the task. */
+        1,                 /* Priority of the task. */
+        NULL,              /* Task handle to keep track of created task. */
+        1);
 //---------------------------------------------------FLASH ACCESS------------------------
 /*
 esp_err_t ret = nvs_flash_init();
@@ -109,11 +112,130 @@ if (ret != ESP_OK) {
 }
 
 void loop() {
-    fdc = !digitalRead(fdcpin);                  //true if fdc is pressed
+    //chill
+}
+
+void leftmot(int speed,int dirrection){
+    digitalWrite(dir1,dirrection);
+    ledcWrite(chn0,speed);
+}
+void rightmot(int speed,int dirrection){
+    digitalWrite(dir2,dirrection);
+    ledcWrite(chn1,speed);
+}
+int current_value(void){//This updates the sensor variables
+    left = analogRead(an1);
+    right = analogRead(an3);
+    //farleft = analogRead(an2);
+    //farright = analogRead(an4);
+    int out = left - right;
+    return out;
+}
+float pidControl(int difference) {// PID controller function
+    float error = 0 - difference;
+    float derivative = error - error_prior;
+    //integral = integral + error;
+    float output = (KP * error) + (KD * derivative); //(KI * integral) +
+    error_prior = error;
+    return output;
+}
+
+void handleRoot() {
+  Serial.println("Handling root request");
+  File file = SPIFFS.open("/index.html", "r");
+  if (!file) {
+    Serial.println("Failed to open /index.html");
+    server.send(500, "text/plain", "File not found");
+    return;
+  }
+  Serial.println("Serving /index.html");
+  server.streamFile(file, "text/html");
+  file.close();
+}
+void handleNotFound() {
+  Serial.println("Not Found: " + server.uri());
+  server.send(404, "text/plain", "Not found");
+}
+void handleFavicon() {
+  server.send(204); // No Content
+}
+void handleStatus() {
+  server.send(200, "text/plain", "Status OK"); // Placeholder response
+}
+
+void handleButton1() {
+  server.send(200, "text/plain", "Button 1 pressed");
+  state=3;
+  Serial.println("Button 1");
+}
+
+void handleButton2() {
+  Serial.println("Button 2");
+  server.send(200, "text/plain", "Button 2 pressed");
+}
+
+void handleButton3() {
+  state=1;
+  server.send(200, "text/plain", "Button 3 pressed");
+  Serial.println("Button 3");
+}
+
+void handleButton4() {
+  Serial.println("Button 4");
+  server.send(200, "text/plain", "Button 4 pressed");
+}
+
+void updateIntValues() {
+  // Send the current values of 'Fleft', 'Left', 'Right', and 'FRight' to the web interface
+  String values = String(farleft) + "\n" + String(left) + "\n" + String(right) + "\n" + String(farright);
+  server.send(200, "text/plain", values);
+}
+void updateStats() {
+  // Send the current state of booleans and the other integer to the web interface
+  String status = String(fdc) + "\n" + String(jack) + "\n" + String(ball) + "\n" + String(state);
+  server.send(200, "text/plain", status);
+}
+void handleInputValues() {
+  if (server.hasArg("speed") && server.hasArg("kp") && server.hasArg("kd")) {
+    basespeed = server.arg("speed").toInt();
+    KP = (server.arg("kp").toInt())/1000.0;
+    KD = (server.arg("kd").toInt())/1000.0;
+    Serial.println("Received values:");
+    Serial.println("Speed: " + String(basespeed));
+    Serial.println("Kp: " + String(KP));
+    Serial.println("Kd: " + String(KD));
+    server.send(200, "text/plain", "Values updated");
+  } else {
+    server.send(400, "text/plain", "Missing parameters");
+  }
+}
+
+void startWebServer(void* parameter) {
+    server.on("/", handleRoot);
+    server.on("/button1", handleButton1);
+    server.on("/button2", handleButton2);
+    server.on("/button3", handleButton3);
+    server.on("/button4", handleButton4);
+    server.on("/favicon.ico", handleFavicon);                     // Handle favicon request
+    server.on("/status", handleStatus);                           // Handle status request
+    server.on("/stats", HTTP_GET, updateStats);
+    server.on("/intValues", HTTP_GET, updateIntValues);
+    server.on("/inputValues", HTTP_GET, handleInputValues);
+    server.onNotFound(handleNotFound);                            // Catch-all handler
+    server.begin();
+    Serial.println("HTTP server started");
+    
+    while (true) {
+        server.handleClient();
+    }
+}
+void runMainApp(void* parameter) {
+    while (true) {
+      fdc = !digitalRead(fdcpin);                  //true if fdc is pressed
     jack = digitalRead(jackpin);               //true if jack is missing
     pid_output = pidControl(current_value());   //this reads the sensors and computes the PID signal
     ball = !digitalRead(ballpin);               //true if ball is present
-    server.handleClient();
+    //server.handleClient();
 //---------------------------------------------------MAIN MACHINE STATE-------------------------
     switch (state) { 
             case 0: //Jack present - Stop
@@ -166,101 +288,8 @@ void loop() {
     rightmot(leftMotSp,motdir1);
     leftmot(rightMotSp,motdir2);
     digitalWrite(bk,brake);
-    server.handleClient();
-}
-
-void leftmot(int speed,int dirrection){
-    digitalWrite(dir1,dirrection);
-    ledcWrite(chn0,speed);
-}
-void rightmot(int speed,int dirrection){
-    digitalWrite(dir2,dirrection);
-    ledcWrite(chn1,speed);
-}
-
-int current_value(void){//This updates the sensor variables
-    left = analogRead(an1);
-    right = analogRead(an3);
-    //farleft = analogRead(an2);
-    //farright = analogRead(an4);
-    int out = left - right;
-    return out;
-}
-float pidControl(int difference) {// PID controller function
-    float error = 0 - difference;
-    float derivative = error - error_prior;
-    //integral = integral + error;
-    float output = (KP * error) + (KD * derivative); //(KI * integral) +
-    error_prior = error;
-    return output;
-}
-void handleRoot() {
-  Serial.println("Handling root request");
-  File file = SPIFFS.open("/index.html", "r");
-  if (!file) {
-    Serial.println("Failed to open /index.html");
-    server.send(500, "text/plain", "File not found");
-    return;
-  }
-  Serial.println("Serving /index.html");
-  server.streamFile(file, "text/html");
-  file.close();
-}
-void handleNotFound() {
-  Serial.println("Not Found: " + server.uri());
-  server.send(404, "text/plain", "Not found");
-}
-void handleFavicon() {
-  server.send(204); // No Content
-}
-void handleStatus() {
-  server.send(200, "text/plain", "Status OK"); // Placeholder response
-}
-void handleButton1() {
-  server.send(200, "text/plain", "Button 1 pressed");
-  state=3;
-  Serial.println("Button 1");
-}
-
-void handleButton2() {
-  Serial.println("Button 2");
-  server.send(200, "text/plain", "Button 2 pressed");
-}
-
-void handleButton3() {
-  state=1;
-  server.send(200, "text/plain", "Button 3 pressed");
-  Serial.println("Button 3");
-}
-
-void handleButton4() {
-  Serial.println("Button 4");
-  server.send(200, "text/plain", "Button 4 pressed");
-}
-
-void updateIntValues() {
-  // Send the current values of 'Fleft', 'Left', 'Right', and 'FRight' to the web interface
-  String values = String(farleft) + "\n" + String(left) + "\n" + String(right) + "\n" + String(farright);
-  server.send(200, "text/plain", values);
-}
-void updateStats() {
-  // Send the current state of booleans and the other integer to the web interface
-  String status = String(fdc) + "\n" + String(jack) + "\n" + String(ball) + "\n" + String(state);
-  server.send(200, "text/plain", status);
-}
-void handleInputValues() {
-  if (server.hasArg("speed") && server.hasArg("kp") && server.hasArg("kd")) {
-    basespeed = server.arg("speed").toInt();
-    KP = (server.arg("kp").toInt())/1000.0;
-    KD = (server.arg("kd").toInt())/1000.0;
-    Serial.println("Received values:");
-    Serial.println("Speed: " + String(basespeed));
-    Serial.println("Kp: " + String(KP));
-    Serial.println("Kd: " + String(KD));
-    server.send(200, "text/plain", "Values updated");
-  } else {
-    server.send(400, "text/plain", "Missing parameters");
-  }
+    //server.handleClient();
+    }
 }
 /*
 //FOR WRITING:
