@@ -5,7 +5,7 @@
 //#include "nvs_flash.h"
 
 const char *ssid = "Zebra";
-const char *password = "ihatehtml";
+const char *password = "azertyuiop";
 
 WebServer server(80);
 
@@ -18,6 +18,9 @@ float error_prior = 0, KP=0.5, KD=4.5,pid_output=0;                             
 int state=0;                                                                            //machine states
 
 bool fdc=0,jack=1,ball=0,rstat=0,ystat=0,gstat=0,brake=0;                               //states
+
+int datain[5]={0,0,0,0,0};
+int dataout[5]={0,0,0,0,0};
 
 //--------------------------------------------------------WEB STUFF----------------------------------
 int basespeed = 341;
@@ -34,6 +37,8 @@ void updateStats();
 void handleInputValues();
 void runMainApp(void* parameter);
 void startWebServer(void* parameter);
+void handleSendData();
+void handleReceiveData();
 //--------------------------------------------------------WEB STUFF----------------------------------
 
 void leftmot(int speed,int dirrection);
@@ -289,6 +294,33 @@ void runMainApp(void* parameter) {
     leftmot(rightMotSp,motdir2);
     digitalWrite(bk,brake);
     //server.handleClient();
+    }
+}
+void handleSendData(void){
+  String dataString=String(dataout[0]);
+  for (int i=1;i<5;i++){
+    dataString+=","+ String(dataout[i]);
+  }
+  server.send(200,"text/plain",dataString);
+}
+void handleReceiveData(void){
+  if(server.hasArg("plain")){
+    String body = server.arg("plain");
+    int index=0;
+    char* token = strtok((char*)body.c_str(),",");
+    while(token != NULL && index<5){
+      datain[index]=atoi(token);
+      token=strtok(NULL,",");
+      index++;
+    }
+    Serial.print("Data received: ");
+    for(int i=0;i<5;i++){
+      Serial.print(datain[i]);
+      Serial.printf("  \n");
+      server.send(200,"text/plain","Data received");
+    }
+  }else{
+      server.send(400,"text/plain","No data received m8");
     }
 }
 /*
