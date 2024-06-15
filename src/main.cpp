@@ -5,7 +5,7 @@
 //#include "nvs_flash.h"
 
 const char *ssid = "Zebra";
-const char *password = "azertyuiop";
+const char *password = "ihatehtml";
 
 WebServer server(80);
 
@@ -20,7 +20,7 @@ int state=0;                                                                    
 bool fdc=0,jack=1,ball=0,rstat=0,ystat=0,gstat=0,brake=0;                               //states
 
 int datain[5]={0,0,0,0,0};
-int dataout[5]={0,0,0,0,0};
+int dataout[5]={11, 22, 33, 44, 5};
 
 //--------------------------------------------------------WEB STUFF----------------------------------
 int basespeed = 341;
@@ -156,6 +156,7 @@ void handleRoot() {
   Serial.println("Serving /index.html");
   server.streamFile(file, "text/html");
   file.close();
+  server.client().stop();
 }
 void handleNotFound() {
   Serial.println("Not Found: " + server.uri());
@@ -227,6 +228,8 @@ void startWebServer(void* parameter) {
     server.on("/intValues", HTTP_GET, updateIntValues);
     server.on("/inputValues", HTTP_GET, handleInputValues);
     server.onNotFound(handleNotFound);                            // Catch-all handler
+    server.on("/receiveData",HTTP_POST, handleReceiveData);
+    server.on("/sendData",HTTP_GET, handleSendData);
     server.begin();
     Serial.println("HTTP server started");
     
@@ -293,34 +296,31 @@ void runMainApp(void* parameter) {
     rightmot(leftMotSp,motdir1);
     leftmot(rightMotSp,motdir2);
     digitalWrite(bk,brake);
+    dataout[1]=state;
     //server.handleClient();
     }
 }
-void handleSendData(void){
-  String dataString=String(dataout[0]);
-  for (int i=1;i<5;i++){
-    dataString+=","+ String(dataout[i]);
-  }
-  server.send(200,"text/plain",dataString);
+void handleSendData() {
+    String dataString = String(dataout[0]);
+    for (int i = 1; i < 5; i++) {
+        dataString += "," + String(dataout[i]);
+    }
+    server.send(200, "text/plain", dataString);
 }
-void handleReceiveData(void){
-  if(server.hasArg("plain")){
-    String body = server.arg("plain");
-    int index=0;
-    char* token = strtok((char*)body.c_str(),",");
-    while(token != NULL && index<5){
-      datain[index]=atoi(token);
-      token=strtok(NULL,",");
-      index++;
-    }
-    Serial.print("Data received: ");
-    for(int i=0;i<5;i++){
-      Serial.print(datain[i]);
-      Serial.printf("  \n");
-      server.send(200,"text/plain","Data received");
-    }
-  }else{
-      server.send(400,"text/plain","No data received m8");
+void handleReceiveData() {
+    if (server.hasArg("plain")) {
+        String body = server.arg("plain");
+        Serial.println("Data received: " + body);
+        int index = 0;
+        char* token = strtok((char*)body.c_str(), ",");
+        while (token != NULL && index < 5) {
+            datain[index] = atoi(token);
+            token = strtok(NULL, ",");
+            index++;
+        }
+        server.send(200, "text/plain", "Data received");
+    } else {
+        server.send(400, "text/plain", "No data received");
     }
 }
 /*
