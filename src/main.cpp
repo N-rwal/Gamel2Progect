@@ -297,33 +297,7 @@ void runMainApp(void* parameter) {
     //rightmot(leftMotSp,motdir1);
     //leftmot(rightMotSp,motdir2);
     digitalWrite(bk,brake);
-    dataout[0]=ball;
-    dataout[1]=state;
     //server.handleClient();
-    }
-}
-void handleSendData() {
-    String dataString = String(dataout[0]);
-    for (int i = 1; i < 5; i++) {
-        dataString += "," + String(dataout[i]);
-    }
-    server.send(200, "text/plain", dataString);
-    dataout[2]=0;
-}
-void handleReceiveData() {
-    if (server.hasArg("plain")) {
-        String body = server.arg("plain");
-        Serial.println("Data received: " + body);
-        int index = 0;
-        char* token = strtok((char*)body.c_str(), ",");
-        while (token != NULL && index < 5) {
-            datain[index] = atoi(token);
-            token = strtok(NULL, ",");
-            index++;
-        }
-        server.send(200, "text/plain", "Data received");
-    } else {
-        server.send(400, "text/plain", "No data received");
     }
 }
 /*
